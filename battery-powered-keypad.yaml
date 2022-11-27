@@ -1,0 +1,150 @@
+esphome:
+# Battery powered version. This uses deepsleep and sends the wake reason (button press) in a sensor to HA.
+# Only supports single click, no double click, hold, etc like the USB powered version.
+  name: dev-esp32
+  on_boot:
+    - priority: 900
+      then:
+        - lambda: |-
+            id(wake_up_reason) = esp_sleep_get_ext1_wakeup_status();
+        - wait_until:
+            condition:
+              api.connected
+            timeout: 60s
+    - priority: 900
+      then:
+        - lambda: esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
+esp32:
+  board: esp-wrover-kit #or whatever your board is
+  framework:
+    type: arduino
+# Enable logging
+logger:
+# Enable Home Assistant API
+api:
+ota:
+  password: !secret ota_password
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  power_save_mode: none
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Dev-Esp32 Fallback Hotspot"
+    password: !secret hotspot_password
+captive_portal:
+sensor:
+  - platform: template
+    id: wakereasonsensor
+    name: "Wake Reason"
+    accuracy_decimals: 0
+    lambda: |-
+      return id(wake_up_reason);
+
+#sleepstart: GPIO26
+#sleepstop: GPIO33
+#tummytimestart: GPIO25 
+#tummytimestop: GPIO32
+#feedingstart: GPIO27
+#feedingstop: GPIO14
+#diaperwet: GPIO12
+#diapersolid: GPIO13
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO26
+      mode:
+        input: true
+        pulldown: true
+    id: sleepstart
+    name: Sleep Start
+  - platform: gpio
+    pin:
+      number: GPIO33
+      mode:
+        input: true
+        pulldown: true
+    id: sleepstop
+    name: Sleep Stop
+  - platform: gpio
+    pin:
+      number: GPIO25
+      mode:
+        input: true
+        pulldown: true
+    id: tummytimestart
+    name: Tummy Time Start
+  - platform: gpio
+    pin:
+      number: GPIO32
+      mode:
+        input: true
+        pulldown: true
+    id: tummytimestop
+    name: Tummy Time Stop
+  - platform: gpio
+    pin:
+      number: GPIO27
+      mode:
+        input: true
+        pulldown: true
+    id: feedingstart
+    name: Feeding Start
+  - platform: gpio
+    pin:
+      number: GPIO14
+      mode:
+        input: true
+        pulldown: true
+    id: feedingstop
+    name: Feeding Stop
+  - platform: gpio
+    pin:
+      number: GPIO12
+      mode:
+        input: true
+        pulldown: true
+    id: diaperwet
+    name: Diaper Wet
+  - platform: gpio
+    pin:
+      number: GPIO1
+      mode:
+        input: true
+        pulldown: true
+    id: diapersolid
+    name: Diaper Solid
+deep_sleep:
+  id: deep_sleep_1
+  run_duration: 10s #10s
+  sleep_duration:
+    days: 1
+  esp32_ext1_wakeup:
+    pins:
+      - number: GPIO12
+      - number: GPIO13
+      - number: GPIO14
+      - number: GPIO25
+      - number: GPIO26
+      - number: GPIO27
+      - number: GPIO32
+      - number: GPIO33
+    mode: ANY_HIGH
+globals:
+   - id: wake_up_reason
+     type: int #or uint64_t if your board requires it
+     restore_value: no
+     initial_value: '0'
+mqtt:
+  broker: 192.168.1.88
+  username: !secret mqttuser
+  password: !secret mqttpassword
+  on_message:
+    - topic: babybuttonpanel/ota_mode
+      payload: 'ON'
+      then:
+        - deep_sleep.prevent: deep_sleep_1
+    - topic: babybuttonpanel/sleep_mode
+      payload: 'ON'
+      then:
+        - deep_sleep.enter: deep_sleep_1

@@ -1,0 +1,201 @@
+alias: Babybuddy Panel
+description: ""
+trigger:
+  - platform: event
+    event_type: esphome.babybuddy_panel_sleepstop
+    id: sleepstop
+  - platform: event
+    event_type: esphome.babybuddy_panel_tummytimestart
+    id: tummytimestart
+  - platform: event
+    event_type: esphome.babybuddy_panel_tummytimestop
+    id: tummytimestop
+  - platform: event
+    event_type: esphome.babybuddy_panel_feedingstop
+    id: feedingstop
+  - platform: event
+    event_type: esphome.babybuddy_panel_sleepstart
+    id: sleepstart
+  - platform: event
+    event_type: esphome.babybuddy_panel_diaperwet
+    id: diaperwet
+  - platform: event
+    event_type: esphome.babybuddy_panel_diapersolid
+    id: diapersolid
+  - platform: event
+    event_type: esphome.babybuddy_panel_feedingstart
+    id: feedingstart
+condition: []
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: sleepstart
+        sequence:
+          - service: babybuddy.start_timer
+            data:
+              name: Sleep Timer
+            target:
+              entity_id: switch.[yourbabies_timer]
+      - conditions:
+          - condition: trigger
+            id: sleepstop
+        sequence:
+          - service: babybuddy.add_sleep
+            data:
+              timer: true
+              notes: From panel
+            target:
+              entity_id: switch.[yourbabies_timer]
+      - conditions:
+          - condition: trigger
+            id: feedingstart
+        sequence:
+          - service: babybuddy.start_timer
+            data:
+              name: Feeding Timer
+            target:
+              entity_id: switch.[yourbabies_timer]
+      - conditions:
+          - condition: trigger
+            id: feedingstop
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{trigger.event.data.title == 'single_click'}}"
+                sequence:
+                  - service: babybuddy.add_feeding
+                    data:
+                      timer: true
+                      type: Breast milk
+                      method: Left breast
+                      notes: From panel
+                    target:
+                      entity_id: switch.[yourbabies_timer]
+              - conditions:
+                  - condition: template
+                    value_template: "{{trigger.event.data.title == 'dbl_click'}}"
+                sequence:
+                  - service: babybuddy.add_feeding
+                    data:
+                      timer: true
+                      type: Breast milk
+                      method: Right breast
+                      notes: From panel
+                    target:
+                      entity_id: switch.[yourbabies_timer]
+              - conditions:
+                  - condition: template
+                    value_template: "{{trigger.event.data.title == 'triple_click'}}"
+                sequence:
+                  - service: babybuddy.add_feeding
+                    data:
+                      timer: true
+                      type: Breast milk
+                      method: Both breasts
+                      notes: From panel
+                    target:
+                      entity_id: switch.[yourbabies_timer]
+      - conditions:
+          - condition: trigger
+            id: tummytimestart
+        sequence:
+          - service: babybuddy.start_timer
+            data:
+              name: Tummy Time Timer
+            target:
+              entity_id: switch.[yourbabies_timer]
+      - conditions:
+          - condition: trigger
+            id: tummytimestop
+        sequence:
+          - service: babybuddy.add_tummy_time
+            data:
+              timer: true
+            target:
+              entity_id: switch.[yourbabies_timer]
+      - conditions:
+          - condition: and
+            conditions:
+              - condition: trigger
+                id: diaperwet
+              - condition: template
+                value_template: "{{trigger.event.data.title == 'single_click'}}"
+        sequence:
+          - service: babybuddy.add_diaper_change
+            data:
+              type: Wet
+              amount: 5
+              notes: From panel
+            target:
+              entity_id: sensor.[your baby]
+              device_id: [device_id for your baby]
+      - conditions:
+          - condition: and
+            conditions:
+              - condition: trigger
+                id: diaperwet
+              - condition: template
+                value_template: "{{trigger.event.data.title == 'long_click'}}"
+        sequence:
+          - service: babybuddy.add_diaper_change
+            data:
+              type: Wet
+              amount: 10
+              notes: From panel
+            target:
+              entity_id: sensor.[your baby]
+              device_id: [device_id for your baby]
+      - conditions:
+          - condition: and
+            conditions:
+              - condition: trigger
+                id: diapersolid
+              - condition: template
+                value_template: "{{trigger.event.data.title == 'single_click'}}"
+        sequence:
+          - service: babybuddy.add_diaper_change
+            data:
+              type: Solid
+              amount: 5
+              notes: From panel
+            target:
+              entity_id: sensor.[your baby]
+              device_id: [device_id for your baby]
+      - conditions:
+          - condition: and
+            conditions:
+              - condition: trigger
+                id: diapersolid
+              - condition: template
+                value_template: "{{trigger.event.data.title == 'long_click'}}"
+        sequence:
+          - service: babybuddy.add_diaper_change
+            data:
+              type: Solid
+              amount: 10
+              notes: From panel
+            target:
+              entity_id: sensor.[your baby]
+              device_id: [device_id for your baby]
+      - conditions:
+          - condition: and
+            conditions:
+              - condition: or
+                conditions:
+                  - condition: trigger
+                    id: diaperwet
+                  - condition: trigger
+                    id: diapersolid
+              - condition: template
+                value_template: "{{trigger.event.data.title == 'dbl_click'}}"
+        sequence:
+          - service: babybuddy.add_diaper_change
+            data:
+              type: Wet and Solid
+              amount: 10
+              notes: From panel
+            target:
+              entity_id: sensor.[your baby]
+mode: single
